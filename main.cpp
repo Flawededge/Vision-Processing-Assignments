@@ -1,3 +1,5 @@
+// https://github.com/Flawededge/Vision-Processing-Assignments
+
 #include <stdio.h>
 #include <chrono>
 #include <ctime>
@@ -91,18 +93,30 @@ Mat rotate_qt(Mat inImage) {
 	vector<Vec3f> circles;
 	HoughCircles(workingImage, circles, HOUGH_GRADIENT, 1, 1, 100, 100, 0, 50);
 
+	vector<Vec3f> corners;
 	for (size_t i = 0; i < circles.size(); i++)
 	{
-		Vec3i c = circles[i];
-		Point center = Point(c[0], c[1]);
-		// circle center
-		circle(inImage, center, 1, Scalar(0, 100, 100), 3, LINE_AA);
-		// circle outline
+		Vec3i c = circles[i]; // Current circle
+
+		Point center = Point(c[0], c[1]); // circle center
+		circle(inImage, center, 1, Scalar(0, 100, 100), 3, LINE_AA); // circle outline
 		int radius = c[2];
 		circle(inImage, center, radius, Scalar(255, 0, 255), 3, LINE_AA);
+		Vec3f curThing = circles[i];
+
+		for (int j = 0; j < circles.size(); j++) {
+
+			Point otherCenter = Point(circles[j][0], circles[j][1]); // circle center
+			if (norm(center - otherCenter) < 20) {
+
+			}
+		}
+		
 	}
 
-	cout << "Testing";
+
+
+	cout << "Testing" << endl;
 
 	return inImage;
 }
