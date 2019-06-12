@@ -21,7 +21,8 @@ char encodingarray[64] = { ' ','a','b','c','d','e','f','g','h','i','j','k','l','
  * g++ -std=c++11 camera_with_fps.cpp -o camera_with_fps `pkg-config --cflags --libs opencv`
 *********************************************************************************************/
 
-Mat rotate_qt(Mat inImage);
+Mat rotate_qr(Mat inImage);
+String read_qr(Mat inImage);
 int getMaxAreaContourId(vector <vector<cv::Point>> contours);
 
 Mat frame;//, image;
@@ -70,8 +71,11 @@ int main(int argc, char** argv)
 			return 1;
 		}
 
-		Mat rotatedImage = rotate_qt(image);
+		Mat rotatedImage = rotate_qr(image);
 		imwrite(savePath[i], rotatedImage);
+		String readData = read_qr(rotatedImage);
+
+		cout << "Read data: " << readData << endl;
 		waitKey(0);
 	}
 	
@@ -122,7 +126,7 @@ int main(int argc, char** argv)
 	}
 }
 
-Mat rotate_qt(Mat inImage) {
+Mat rotate_qr(Mat inImage) {
 	Mat workingImage;
 	resize(inImage, workingImage, Size(640, 640));
 	cvtColor(workingImage, workingImage, COLOR_BGR2HSV);
@@ -141,7 +145,6 @@ Mat rotate_qt(Mat inImage) {
 
 	RotatedRect outline = minAreaRect(contours[largest]);
 	Mat M = getRotationMatrix2D(Point(inImage.cols/2, inImage.rows/2), outline.angle, 1);
-	Mat testImage;
 	warpAffine(inImage, inImage, M, inImage.size(), INTER_LINEAR, BORDER_CONSTANT, Scalar(255, 255, 255));
 
 	// The QR code is squared up by this point, time to crop the square
@@ -162,15 +165,50 @@ Mat rotate_qt(Mat inImage) {
 
 	// Time to work out the final rotation of the image
 	cvtColor(inImage, workingImage, COLOR_BGR2GRAY);
-	imshow("InvertGray", workingImage);
-	findContours(~workingImage, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
-	largest = getMaxAreaContourId(contours);  // The largest contour will be the QR code
-	drawContours(inImage, contours, largest, Scalar(255, 0, 0), 1);
 
-	Rect FinalQR = boundingRect(contours[largest]); // Get the bounding for the current Qr
-	imshow("Output", inImage);
+	contours.clear();
+	findContours(~workingImage, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
+
+	largest = getMaxAreaContourId(contours);  // The largest contour will be the QR code
+	//drawContours(inImage, contours, largest, Scalar(255, 0, 0), 1);
+
+	Rect FinalQR = boundingRect(Mat(contours[largest])); // Get the bounding for the current Qr
+
+	// Create a rectangle in each corner
+	Rect topLeft(FinalQR.x, FinalQR.y, 70, 70);
+	Rect topRight(FinalQR.x + FinalQR.width - 70, FinalQR.y, 70, 70);
+	Rect botLeft(FinalQR.x, FinalQR.y + FinalQR.height - 70, 70, 70);
+	Rect botRight(FinalQR.x + FinalQR.width - 70, FinalQR.y + FinalQR.height - 70, 70, 70);
+
+	Scalar means[] = { mean(inImage(topRight)), mean(inImage(topLeft)), mean(inImage(botLeft)), mean(inImage(botRight)) };
+
+	//rectangle(inImage, topLeft, Scalar(0, 255, 0), 2);
+	//rectangle(inImage, topRight, Scalar(0, 255, 0), 2);
+	//rectangle(inImage, botLeft, Scalar(0, 255, 0), 2);
+	//rectangle(inImage, botRight, Scalar(0, 255, 0), 2);
+
+	// Compare the mean pixel values of each corner. The one with the most entropy will be the non-circle corner
+	int entropy[4] = { 0, 0, 0, 0 };
+	for (int i = 0; i < 3; i++) {
+		int med = (means[0][i] + means[1][i] + means[2][i] + means[3][i]) / 4; // Get the median value of the current channel
+		for (int j = 0; j < 4; j++) {
+			entropy[j] += abs(means[j][i] - med); // Get the entropy of the current channel and add it to the total
+		}
+	}
+	const int N = sizeof(entropy) / sizeof(int);
+	int rotationAngle = distance(entropy, max_element(entropy, entropy + N)) * 90;
+	cout << "Rotation: " << rotationAngle << endl;
+	M = getRotationMatrix2D(Point(inImage.cols / 2, inImage.rows / 2), -rotationAngle, 1);
+	warpAffine(inImage, inImage, M, inImage.size(), INTER_LINEAR, BORDER_CONSTANT, Scalar(255, 255, 255));
 
 	return inImage;
+}
+
+String read_qr(Mat inImage)
+{
+	imshow("Input", inImage);
+
+	return String();
 }
 
 int getMaxAreaContourId(vector <vector<cv::Point>> contours) {
@@ -182,6 +220,6 @@ int getMaxAreaContourId(vector <vector<cv::Point>> contours) {
 			maxArea = newArea;
 			maxAreaContourId = j;
 		}
-		return maxAreaContourId;
 	}
+	return maxAreaContourId;
 }
