@@ -22,21 +22,60 @@ char encodingarray[64] = { ' ','a','b','c','d','e','f','g','h','i','j','k','l','
 *********************************************************************************************/
 
 Mat rotate_qt(Mat inImage);
+int getMaxAreaContourId(vector <vector<cv::Point>> contours);
 
 Mat frame;//, image;
 int main(int argc, char** argv)
 {
-	String imagepath = "C:\\Users\\crdig\\Google Drive\\Uni\\Code\\Training Networks\\Images\\abcde.jpg";
+	String imagepath[] = {
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\abcde.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\abcde_rotated.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\abcde_rotated_scaled.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\abcde_scaled.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\congratulations.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\congratulations_rotated.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\congratulations_rotated_scaled.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\congratulations_scaled.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\Darwin.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\Darwin_rotated.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\Darwin_rotated_scaled.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\Darwin_scaled.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\farfaraway.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\farfaraway_rotated.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\farfaraway_rotated_scaled.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\farfaraway_scaled.jpg" };
 
-	Mat image = imread(imagepath);
-	if (image.empty()) {
-		cout << "Image empty" << endl;
-		return 1;
+	String savePath[] = {
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\abcde.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\abcde_rotated.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\abcde_rotated_scaled.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\abcde_scaled.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\congratulations.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\congratulations_rotated.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\congratulations_rotated_scaled.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\congratulations_scaled.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\Darwin.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\Darwin_rotated.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\Darwin_rotated_scaled.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\Darwin_scaled.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\farfaraway.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\farfaraway_rotated.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\farfaraway_rotated_scaled.jpg",
+		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\farfaraway_scaled.jpg" };
+
+	for (int i = 0; i < size(imagepath); i++) {
+		Mat image = imread(imagepath[i]);
+		if (image.empty()) {
+			cout << "Image empty: " << imagepath[i] << endl;
+			return 1;
+		}
+
+		Mat rotatedImage = rotate_qt(image);
+		imwrite(savePath[i], rotatedImage);
+		waitKey(0);
 	}
-
-	Mat rotatedImage = rotate_qt(image);
-	imshow("CurrentImage", rotatedImage);
-	waitKey(0);
+	
+	
 
 	return(0);
 
@@ -85,42 +124,64 @@ int main(int argc, char** argv)
 
 Mat rotate_qt(Mat inImage) {
 	Mat workingImage;
-	inRange(inImage, Scalar(200, 0, 0), Scalar(250, 10, 10), workingImage);
+	resize(inImage, workingImage, Size(640, 640));
+	cvtColor(workingImage, workingImage, COLOR_BGR2HSV);
 
-	Mat kernel = getStructuringElement(MORPH_RECT, Size(3, 3));
-	dilate(workingImage, workingImage, kernel);
+	inRange(workingImage, Scalar(100, 0, 0), Scalar(140, 255, 255), workingImage);
 
-	vector<Vec3f> circles;
-	HoughCircles(workingImage, circles, HOUGH_GRADIENT, 1, 1, 100, 100, 0, 50);
+	// Find the outside bounds of the QR code
+	Mat kernel = getStructuringElement(MORPH_RECT, Size(20, 20)); // Lagre kernel to pick up noise
+	dilate(workingImage, workingImage, kernel, Point(-1, -1), 1); // Make sure it's solid
 
-	vector<Vec3f> corners;
-	for (size_t i = 0; i < circles.size(); i++)
-	{
-		Vec3i c = circles[i]; // Current circle
+		// Find contours
+	vector<vector<Point>> contours;
+	vector<Vec4i> hierarchy;
+	findContours(workingImage, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
+	int largest = getMaxAreaContourId(contours);  // The largest contour will be the QR code
 
-		Point center = Point(c[0], c[1]); // circle center
-		circle(inImage, center, 1, Scalar(0, 100, 100), 3, LINE_AA); // circle outline
-		int radius = c[2];
-		circle(inImage, center, radius, Scalar(255, 0, 255), 3, LINE_AA);
-		Vec3f curThing = circles[i];
+	RotatedRect outline = minAreaRect(contours[largest]);
+	Mat M = getRotationMatrix2D(Point(inImage.cols/2, inImage.rows/2), outline.angle, 1);
+	Mat testImage;
+	warpAffine(inImage, inImage, M, inImage.size(), INTER_LINEAR, BORDER_CONSTANT, Scalar(255, 255, 255));
 
-		for (int j = 0; j < circles.size(); j++) {
+	// The QR code is squared up by this point, time to crop the square
 
-			Point otherCenter = Point(circles[j][0], circles[j][1]); // circle center
-			if (norm(center - otherCenter) < 20) {
+	cvtColor(inImage, workingImage, COLOR_BGR2HSV);
+	inRange(workingImage, Scalar(0, 0, 0), Scalar(180, 255, 240), workingImage);
 
-			}
-		}
-		
-	}
+	// Find the outside bounds of the QR code
+	dilate(workingImage, workingImage, kernel, Point(-1, -1), 1); // Make sure it's solid
+	findContours(workingImage, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
+	
+	largest = getMaxAreaContourId(contours);  // The largest contour will be the QR code
 
+	// Get the ROI rectangle
+	Rect newSize = boundingRect(Mat(contours[largest]));
+	inImage = inImage(newSize); // Crop image
+	resize(inImage, inImage, Size(640, 640));
 
+	// Time to work out the final rotation of the image
+	cvtColor(inImage, workingImage, COLOR_BGR2GRAY);
+	imshow("InvertGray", workingImage);
+	findContours(~workingImage, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
+	largest = getMaxAreaContourId(contours);  // The largest contour will be the QR code
+	drawContours(inImage, contours, largest, Scalar(255, 0, 0), 1);
 
-	cout << "Testing" << endl;
+	Rect FinalQR = boundingRect(contours[largest]); // Get the bounding for the current Qr
+	imshow("Output", inImage);
 
 	return inImage;
 }
 
-String read_qr(Mat* inImage, Mat* outImage) {
-	return "Why are you running this?";
+int getMaxAreaContourId(vector <vector<cv::Point>> contours) {
+	double maxArea = 0;
+	int maxAreaContourId = -1;
+	for (int j = 0; j < contours.size(); j++) {
+		double newArea = cv::contourArea(contours.at(j));
+		if (newArea > maxArea) {
+			maxArea = newArea;
+			maxAreaContourId = j;
+		}
+		return maxAreaContourId;
+	}
 }
