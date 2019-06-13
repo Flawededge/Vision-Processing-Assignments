@@ -12,9 +12,10 @@ using namespace cv;
 using namespace std;
 using namespace chrono;
 
-char encodingarray[64] = { ' ','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','x','y','w','z',
-'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','X','Y','W','Z',
-'0','1','2','3','4','5','6','7','8','9','.' };
+#define Mpixel(image,x,y) image.at<cv::Vec3b>(y, x)
+#define MpixelB(image,x,y) (uchar)image.at<cv::Vec3b>(y, x)[0]
+#define MpixelG(image,x,y) (uchar)image.at<cv::Vec3b>(y, x)[1]
+#define MpixelR(image,x,y) (uchar)image.at<cv::Vec3b>(y, x)[2]
 
 /*********************************************************************************************
  * compile with:
@@ -28,57 +29,54 @@ int getMaxAreaContourId(vector <vector<cv::Point>> contours);
 Mat frame;//, image;
 int main(int argc, char** argv)
 {
-	String imagepath[] = {
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\abcde.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\abcde_rotated.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\abcde_rotated_scaled.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\abcde_scaled.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\congratulations.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\congratulations_rotated.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\congratulations_rotated_scaled.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\congratulations_scaled.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\Darwin.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\Darwin_rotated.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\Darwin_rotated_scaled.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\Darwin_scaled.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\farfaraway.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\farfaraway_rotated.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\farfaraway_rotated_scaled.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\farfaraway_scaled.jpg" };
+	//String imagepath[] = {
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\abcde.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\abcde_rotated.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\abcde_rotated_scaled.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\abcde_scaled.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\congratulations.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\congratulations_rotated.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\congratulations_rotated_scaled.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\congratulations_scaled.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\Darwin.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\Darwin_rotated.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\Darwin_rotated_scaled.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\Darwin_scaled.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\farfaraway.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\farfaraway_rotated.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\farfaraway_rotated_scaled.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\farfaraway_scaled.jpg" };
 
-	String savePath[] = {
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\abcde.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\abcde_rotated.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\abcde_rotated_scaled.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\abcde_scaled.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\congratulations.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\congratulations_rotated.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\congratulations_rotated_scaled.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\congratulations_scaled.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\Darwin.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\Darwin_rotated.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\Darwin_rotated_scaled.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\Darwin_scaled.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\farfaraway.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\farfaraway_rotated.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\farfaraway_rotated_scaled.jpg",
-		"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\farfaraway_scaled.jpg" };
+	//String savePath[] = {
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\abcde.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\abcde_rotated.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\abcde_rotated_scaled.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\abcde_scaled.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\congratulations.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\congratulations_rotated.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\congratulations_rotated_scaled.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\congratulations_scaled.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\Darwin.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\Darwin_rotated.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\Darwin_rotated_scaled.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\Darwin_scaled.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\farfaraway.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\farfaraway_rotated.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\farfaraway_rotated_scaled.jpg",
+	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\farfaraway_scaled.jpg" };
 
-	for (int i = 0; i < size(imagepath); i++) {
-		Mat image = imread(imagepath[i]);
-		if (image.empty()) {
-			cout << "Image empty: " << imagepath[i] << endl;
-			return 1;
-		}
-
-		Mat rotatedImage = rotate_qr(image);
-		imwrite(savePath[i], rotatedImage);
-		String readData = read_qr(rotatedImage);
-
-		cout << "Read data: " << readData << endl;
-		waitKey(0);
-	}
 	
+	Mat image = imread("C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\Darwin.jpg");
+	if (image.empty()) {
+		cout << "Image empty =(" << endl;
+		return 1;
+	}
+
+	Mat rotatedImage = rotate_qr(image);
+	String readData = read_qr(rotatedImage);
+
+	cout << "Read data: " << readData << endl;
+	waitKey(0);
 	
 
 	return(0);
@@ -197,7 +195,7 @@ Mat rotate_qr(Mat inImage) {
 	}
 	const int N = sizeof(entropy) / sizeof(int);
 	int rotationAngle = distance(entropy, max_element(entropy, entropy + N)) * 90;
-	cout << "Rotation: " << rotationAngle << endl;
+	//cout << "Rotation: " << rotationAngle << endl;
 	M = getRotationMatrix2D(Point(inImage.cols / 2, inImage.rows / 2), -rotationAngle, 1);
 	warpAffine(inImage, inImage, M, inImage.size(), INTER_LINEAR, BORDER_CONSTANT, Scalar(255, 255, 255));
 
@@ -206,9 +204,74 @@ Mat rotate_qr(Mat inImage) {
 
 String read_qr(Mat inImage)
 {
-	imshow("Input", inImage);
+	const float gridSize = 47; // The X*X size of the grid
+	const int cornerSize = 6; // The X*X corner size of the grid
+	
 
-	return String();
+	// Get an accurate bounding rectangle
+	Mat workingImage;
+	cvtColor(inImage, workingImage, COLOR_BGR2GRAY);
+
+	vector<vector<Point>> contours;
+	vector<Vec4i> hierarchy;
+	inRange(~workingImage, 100, 255, workingImage);
+	findContours(workingImage, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
+
+	Rect qr = boundingRect(Mat(contours[getMaxAreaContourId(contours)]));  // The largest contour will be the QR code
+
+	double step = qr.width / gridSize;
+	double offset = 7 + double(qr.x);
+	int farThresh = gridSize - cornerSize;
+
+	rectangle(inImage, qr, Scalar(0, 255, 255));
+	Point cur;
+	vector<int> output;
+	for (double y = 0; y < gridSize; y++) {
+		cur.y = round(y * step + offset);
+		for (double x = 0; x < gridSize; x++) {
+			if (((x < cornerSize || x >= farThresh) && y >= farThresh) || 
+				(x < cornerSize && y < cornerSize)) continue; // Check if in the corner
+
+			cur.x = round(y * step + offset);
+			cout << Mpixel(inImage, cur.x, cur.y);
+			output.push_back(MpixelR(inImage, cur.x, cur.y) > 128 ? 1 : 0);
+			output.push_back(MpixelG(inImage, cur.x, cur.y) > 128 ? 1 : 0);
+			output.push_back(MpixelB(inImage, cur.x, cur.y) > 128 ? 1 : 0);
+			//cout << cur << " " << x << " " << y << " " << output.length() << endl;
+			circle(inImage, cur, 4, Scalar(0, 0, 255));
+			//cout << MpixelR(inImage, cur.x, cur.y) << " " << MpixelG(inImage, cur.x, cur.y) << " " << MpixelB(inImage, cur.x, cur.y);
+			//cout << " " << output << endl;;
+			//imshow("WorkingImage", inImage);
+			//waitKey(0);
+			//char cur = inImage.at<char>(curY, curX, 0);
+
+		}
+	}
+
+	char encodingarray[64] = { ' ','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','x','y','w','z',
+'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','X','Y','W','Z',
+'0','1','2','3','4','5','6','7','8','9','.' };
+
+	int number = 0;
+	int curStep = 0;
+	String finalOutput = "";
+
+	reverse(output.begin(), output.end());
+
+	while(output.size()) {
+		if (output.back() == 1) number += pow(2, curStep);
+		output.pop_back();
+		curStep++;
+		if (curStep == 6) {
+			curStep = 0;
+			cout << number << " " << encodingarray[number] << endl;
+			number = 0;
+		}
+	}
+
+	imshow("Input", inImage);
+	return finalOutput;
+	//return String();
 }
 
 int getMaxAreaContourId(vector <vector<cv::Point>> contours) {
