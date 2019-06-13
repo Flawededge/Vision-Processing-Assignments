@@ -66,7 +66,7 @@ int main(int argc, char** argv)
 	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\farfaraway_scaled.jpg" };
 
 	
-	Mat image = imread("C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\Darwin.jpg");
+	Mat image = imread("C:\\Users\\crdig\\Documents\\,Git\\Vision Processing Assignments\\Images\\congratulations_rotated_scaled.jpg");
 	if (image.empty()) {
 		cout << "Image empty =(" << endl;
 		return 1;
@@ -202,13 +202,21 @@ Mat rotate_qr(Mat inImage) {
 	return inImage;
 }
 
-String read_qr(Mat inImage)
-{
+
+
+String read_qr(Mat inImage) {
+/* Read QR
+- Takes in an image containing a cropped color qr code and reads the data from it
+
+1. Get bounding rectangle
+2. Loop through each square, missing the corners to read the pixel values and convert them to data
+	2.1. During this use each 6 bits of data to get a character from the encodingarray
+*/
 	const float gridSize = 47; // The X*X size of the grid
 	const int cornerSize = 6; // The X*X corner size of the grid
 	
 
-	// Get an accurate bounding rectangle
+	/// Get an accurate bounding rectangle
 	Mat workingImage;
 	cvtColor(inImage, workingImage, COLOR_BGR2GRAY);
 
@@ -224,57 +232,65 @@ String read_qr(Mat inImage)
 	int farThresh = gridSize - cornerSize;
 
 	rectangle(inImage, qr, Scalar(0, 255, 255));
+
+	/// Start of processing the squares of the image
 	Point cur;
-	vector<int> output;
-	for (double y = 0; y < gridSize; y++) {
-		cur.y = round(y * step + offset);
-		for (double x = 0; x < gridSize; x++) {
-			if (((x < cornerSize || x >= farThresh) && y >= farThresh) || 
-				(x < cornerSize && y < cornerSize)) continue; // Check if in the corner
+	
 
-			cur.x = round(y * step + offset);
-			cout << Mpixel(inImage, cur.x, cur.y);
-			output.push_back(MpixelR(inImage, cur.x, cur.y) > 128 ? 1 : 0);
-			output.push_back(MpixelG(inImage, cur.x, cur.y) > 128 ? 1 : 0);
-			output.push_back(MpixelB(inImage, cur.x, cur.y) > 128 ? 1 : 0);
-			//cout << cur << " " << x << " " << y << " " << output.length() << endl;
-			circle(inImage, cur, 4, Scalar(0, 0, 255));
-			//cout << MpixelR(inImage, cur.x, cur.y) << " " << MpixelG(inImage, cur.x, cur.y) << " " << MpixelB(inImage, cur.x, cur.y);
-			//cout << " " << output << endl;;
-			//imshow("WorkingImage", inImage);
-			//waitKey(0);
-			//char cur = inImage.at<char>(curY, curX, 0);
-
-		}
-	}
-
-	char encodingarray[64] = { ' ','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','x','y','w','z',
+	const char encodingarray[64] = { ' ','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','x','y','w','z',
 'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','X','Y','W','Z',
 '0','1','2','3','4','5','6','7','8','9','.' };
 
-	int number = 0;
-	int curStep = 0;
-	String finalOutput = "";
+	Vec3b prevValue;
+	String output;
+	bool first = true;
 
-	reverse(output.begin(), output.end());
+	for (int y = 0; y < gridSize; y++) {
+		cur.y = round(y * step + offset); // Get the Y coordiante
+		for (int x = 0; x < gridSize; x++) {
+			if (((x < cornerSize || x >= farThresh) && y >= farThresh) || 
+				(x < cornerSize && y < cornerSize)) continue; // Check if in the corner
 
-	while(output.size()) {
-		if (output.back() == 1) number += pow(2, curStep);
-		output.pop_back();
-		curStep++;
-		if (curStep == 6) {
-			curStep = 0;
-			cout << number << " " << encodingarray[number] << endl;
-			number = 0;
+			cur.x = round(x * step + offset); // Get the X coordiante
+
+			//cout << x << " " << y << " " << Mpixel(inImage, cur.x, cur.y) << endl;
+			
+			if (first) {
+				prevValue = Mpixel(inImage, cur.x, cur.y); // Get the pixel data at the current coordinate
+			}
+			else {
+				int value = 0;
+				value += prevValue[2] > 128 ? 32 : 0;
+				value += prevValue[1] > 128 ? 16 : 0;
+				value += prevValue[0] > 128 ? 8 : 0;
+				value += Mpixel(inImage, cur.x, cur.y)[2] > 128 ? 4 : 0;
+				value += Mpixel(inImage, cur.x, cur.y)[1] > 128 ? 2 : 0;
+				value += Mpixel(inImage, cur.x, cur.y)[0] > 128 ? 1 : 0;
+				output += encodingarray[value];
+
+				// Output for debug
+				//cout << value << "|" << output << "|" << endl; 
+				//imshow("WorkingImage", inImage);
+				//waitKey(0);
+			}
+			first = !first;
+
+			circle(inImage, cur, 2, Scalar(0, 0, 255)); // Draw circles to make it look like the image has chicken pox
 		}
 	}
 
-	imshow("Input", inImage);
-	return finalOutput;
-	//return String();
+	
+	imshow("Input", inImage); // Show the image just because it's interesting
+	return output;
 }
 
+
 int getMaxAreaContourId(vector <vector<cv::Point>> contours) {
+/* Get max area contour ID
+This small function returns the id of the largest contour by area
+
+Note: Retrieved from a guy on Stack Overflow
+*/
 	double maxArea = 0;
 	int maxAreaContourId = -1;
 	for (int j = 0; j < contours.size(); j++) {
