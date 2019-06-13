@@ -29,174 +29,116 @@ int getMaxAreaContourId(vector <vector<cv::Point>> contours);
 Mat frame;//, image;
 int main(int argc, char** argv)
 {
-	//String imagepath[] = {
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\abcde.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\abcde_rotated.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\abcde_rotated_scaled.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\abcde_scaled.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\congratulations.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\congratulations_rotated.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\congratulations_rotated_scaled.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\congratulations_scaled.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\Darwin.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\Darwin_rotated.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\Darwin_rotated_scaled.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\Darwin_scaled.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\farfaraway.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\farfaraway_rotated.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\farfaraway_rotated_scaled.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\Images\\farfaraway_scaled.jpg" };
+	if (argc == 2) {
+		Mat image = imread(argv[1]);
 
-	//String savePath[] = {
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\abcde.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\abcde_rotated.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\abcde_rotated_scaled.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\abcde_scaled.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\congratulations.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\congratulations_rotated.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\congratulations_rotated_scaled.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\congratulations_scaled.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\Darwin.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\Darwin_rotated.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\Darwin_rotated_scaled.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\Darwin_scaled.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\farfaraway.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\farfaraway_rotated.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\farfaraway_rotated_scaled.jpg",
-	//	"C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\ImageOut\\farfaraway_scaled.jpg" };
+		if (image.empty()) {
+			cout << "Image empty. May have read wrong =(" << endl;
+			return 1;
+		}
 
-	
-	Mat image = imread("C:\\Users\\crdig\\Documents\\,Git\\Vision Processing Assignments\\Images\\congratulations_rotated_scaled.jpg");
-	if (image.empty()) {
-		cout << "Image empty =(" << endl;
-		return 1;
+		Mat rotatedImage = rotate_qr(image);
+		String readData = read_qr(rotatedImage);
+		cout << "Read data: " << readData << endl;
+		waitKey(0);
+		return(0);
 	}
-
-	Mat rotatedImage = rotate_qr(image);
-	String readData = read_qr(rotatedImage);
-
-	cout << "Read data: " << readData << endl;
-	waitKey(0);
-	
-
-	return(0);
-
-	VideoCapture cap;
-	cap.open(0);
-	if (!cap.isOpened())
-	{
-		cout << "Failed to open camera" << endl;
-		return 0;
-	}
-	cout << "Opened camera" << endl;
-	namedWindow("WebCam", 1);
-	cap.set(CAP_PROP_FRAME_WIDTH, 640);
-	//   cap.set(CV_CAP_PROP_FRAME_WIDTH, 960);
-	//   cap.set(CV_CAP_PROP_FRAME_WIDTH, 1600);
-	cap.set(CAP_PROP_FRAME_HEIGHT, 480);
-	//   cap.set(CV_CAP_PROP_FRAME_HEIGHT, 720);
-	//   cap.set(CV_CAP_PROP_FRAME_HEIGHT, 1200);
-	cap >> frame;
-	printf("frame size %d %d \n", frame.rows, frame.cols);
-	int key = 0;
-
-	double fps = 0.0;
-	while (1) {
-		system_clock::time_point start = system_clock::now();
-		//for(int a=0;a<10;a++){
+	else {
+		VideoCapture cap;
+		cap.open(0);
+		if (!cap.isOpened())
+		{
+			cout << "Failed to open camera" << endl;
+			return 0;
+		}
+		cout << "Opened camera" << endl;
+		namedWindow("WebCam", 1);
+		cap.set(CAP_PROP_FRAME_WIDTH, 640);
+		//   cap.set(CV_CAP_PROP_FRAME_WIDTH, 960);
+		//   cap.set(CV_CAP_PROP_FRAME_WIDTH, 1600);
+		cap.set(CAP_PROP_FRAME_HEIGHT, 480);
+		//   cap.set(CV_CAP_PROP_FRAME_HEIGHT, 720);
+		//   cap.set(CV_CAP_PROP_FRAME_HEIGHT, 1200);
 		cap >> frame;
-		if (frame.empty())
-			break;
+		printf("frame size %d %d \n", frame.rows, frame.cols);
+		int key = 0;
 
-		char printit[100];
-		sprintf(printit, "%2.1f", fps);
-		putText(frame, printit, Point(10, 30), FONT_HERSHEY_PLAIN, 2, Scalar(255, 255, 255), 2, 8);
-		imshow("WebCam", frame);
-		key = waitKey(1);
-		if (key == 113 || key == 27) return 0;//either esc or 'q'
+		double fps = 0.0;
+		while (1) {
+			system_clock::time_point start = system_clock::now();
+			//for(int a=0;a<10;a++){
+			cap >> frame;
+			if (frame.empty())
+				break;
 
-	  //}
-		system_clock::time_point end = system_clock::now();
-		double seconds = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-		//fps = 1000000*10.0/seconds;
-		fps = 1000000 / seconds;
-		cout << "frames " << fps << " seconds " << seconds << endl;
+			frame = rotate_qr(frame);
+
+			char printit[100];
+			sprintf(printit, "%2.1f", fps);
+			putText(frame, printit, Point(10, 30), FONT_HERSHEY_PLAIN, 2, Scalar(255, 255, 255), 2, 8);
+			imshow("WebCam", frame);
+			key = waitKey(1);
+			if (key == 113 || key == 27) return 0;//either esc or 'q'
+
+		  //}
+			system_clock::time_point end = system_clock::now();
+			double seconds = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+			//fps = 1000000*10.0/seconds;
+			fps = 1000000 / seconds;
+			cout << "frames " << fps << " seconds " << seconds << endl;
+		}
 	}
 }
 
 Mat rotate_qr(Mat inImage) {
+/* Rotate QR
+- Takes in a color QR code on a very bright background and rotates it to the correct orientation
+
+1. Make the working image small to make the process fast
+2. Find the QR code by thresholding an inverted image
+3. Square up the working image
+4. Detect which corner is filled, and so doesn't have circles
+5. Orient the original image and return it 
+*/
+	/// Find where the QR code is
 	Mat workingImage;
-	resize(inImage, workingImage, Size(640, 640));
-	cvtColor(workingImage, workingImage, COLOR_BGR2HSV);
+	resize(inImage, workingImage, Size(300, 300)); // Make image small to speed up processing
+	cvtColor(workingImage, workingImage, COLOR_BGR2GRAY); // Convert image to grayscale, as color isn't required
+	inRange(~workingImage, 100, 255, workingImage); // Threshold the negative of the image to remove white background
 
-	inRange(workingImage, Scalar(100, 0, 0), Scalar(140, 255, 255), workingImage);
-
-	// Find the outside bounds of the QR code
-	Mat kernel = getStructuringElement(MORPH_RECT, Size(20, 20)); // Lagre kernel to pick up noise
-	dilate(workingImage, workingImage, kernel, Point(-1, -1), 1); // Make sure it's solid
-
-		// Find contours
-	vector<vector<Point>> contours;
-	vector<Vec4i> hierarchy;
-	findContours(workingImage, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
-	int largest = getMaxAreaContourId(contours);  // The largest contour will be the QR code
-
-	RotatedRect outline = minAreaRect(contours[largest]);
-	Mat M = getRotationMatrix2D(Point(inImage.cols/2, inImage.rows/2), outline.angle, 1);
-	warpAffine(inImage, inImage, M, inImage.size(), INTER_LINEAR, BORDER_CONSTANT, Scalar(255, 255, 255));
-
-	// The QR code is squared up by this point, time to crop the square
-
-	cvtColor(inImage, workingImage, COLOR_BGR2HSV);
-	inRange(workingImage, Scalar(0, 0, 0), Scalar(180, 255, 240), workingImage);
-
-	// Find the outside bounds of the QR code
-	dilate(workingImage, workingImage, kernel, Point(-1, -1), 1); // Make sure it's solid
-	findContours(workingImage, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
+	/// Morph the image to make it a bit more solid
+	Mat kernel = getStructuringElement(MORPH_RECT, Size(3, 3)); // Small kernel for a small image
+	erode(workingImage, workingImage, kernel, Point(-1, -1), 1); // Small morph to wear away the corners
+	morphologyEx(workingImage, workingImage, MORPH_CLOSE, kernel, Point(-1,-1), 3); // Closing to try and make the entire thing solid
 	
-	largest = getMaxAreaContourId(contours);  // The largest contour will be the QR code
+	/// Find the largest contour and get it's details
+	vector<vector<Point>> contours; vector<Vec4i> hierarchy; // Variable setup
+	findContours(workingImage, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE); // Find contours
+	int largest = getMaxAreaContourId(contours);  // Get index of the largest contour
 
-	// Get the ROI rectangle
-	Rect newSize = boundingRect(Mat(contours[largest]));
-	inImage = inImage(newSize); // Crop image
-	resize(inImage, inImage, Size(640, 640));
+	/// Square up the working image
+	RotatedRect outline = minAreaRect(contours[largest]); // Get the rotated rectangle
+	Mat M = getRotationMatrix2D(Point(workingImage.cols/2, workingImage.rows/2), outline.angle, 1);
+	warpAffine(workingImage, workingImage, M, workingImage.size(), INTER_LINEAR); // Square up the working image
 
-	// Time to work out the final rotation of the image
-	cvtColor(inImage, workingImage, COLOR_BGR2GRAY);
+	/// Get the size and coordinates of the squared up QR code
+	findContours(workingImage, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE); // Find contours
+	largest = getMaxAreaContourId(contours);  // Get index of the largest contour
 
-	contours.clear();
-	findContours(~workingImage, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
+	/// Check which corner is filled in to make the code upright
+		// Note: The corners are ~12% of the width, so I used 10% mean value
+	Rect qr = boundingRect(contours[largest]);
+	int boxSize = round(qr.width * 0.1);
+	Rect topLeft(qr.x, qr.y, boxSize, boxSize);
+	Rect topRight(qr.x + qr.width - boxSize, qr.y, boxSize, boxSize);
+	Rect botLeft(qr.x, qr.y + qr.height - boxSize, boxSize, boxSize);
+	Rect botRight(qr.x + qr.width - boxSize, qr.y + qr.height - boxSize, boxSize, boxSize);
+	int means[] = { mean(workingImage(topRight))[0], mean(workingImage(topLeft))[0],  // Get the mean value of each element
+		mean(workingImage(botLeft))[0], mean(workingImage(botRight))[0] };
 
-	largest = getMaxAreaContourId(contours);  // The largest contour will be the QR code
-	//drawContours(inImage, contours, largest, Scalar(255, 0, 0), 1);
-
-	Rect FinalQR = boundingRect(Mat(contours[largest])); // Get the bounding for the current Qr
-
-	// Create a rectangle in each corner
-	Rect topLeft(FinalQR.x, FinalQR.y, 70, 70);
-	Rect topRight(FinalQR.x + FinalQR.width - 70, FinalQR.y, 70, 70);
-	Rect botLeft(FinalQR.x, FinalQR.y + FinalQR.height - 70, 70, 70);
-	Rect botRight(FinalQR.x + FinalQR.width - 70, FinalQR.y + FinalQR.height - 70, 70, 70);
-
-	Scalar means[] = { mean(inImage(topRight)), mean(inImage(topLeft)), mean(inImage(botLeft)), mean(inImage(botRight)) };
-
-	//rectangle(inImage, topLeft, Scalar(0, 255, 0), 2);
-	//rectangle(inImage, topRight, Scalar(0, 255, 0), 2);
-	//rectangle(inImage, botLeft, Scalar(0, 255, 0), 2);
-	//rectangle(inImage, botRight, Scalar(0, 255, 0), 2);
-
-	// Compare the mean pixel values of each corner. The one with the most entropy will be the non-circle corner
-	int entropy[4] = { 0, 0, 0, 0 };
-	for (int i = 0; i < 3; i++) {
-		int med = (means[0][i] + means[1][i] + means[2][i] + means[3][i]) / 4; // Get the median value of the current channel
-		for (int j = 0; j < 4; j++) {
-			entropy[j] += abs(means[j][i] - med); // Get the entropy of the current channel and add it to the total
-		}
-	}
-	const int N = sizeof(entropy) / sizeof(int);
-	int rotationAngle = distance(entropy, max_element(entropy, entropy + N)) * 90;
-	//cout << "Rotation: " << rotationAngle << endl;
-	M = getRotationMatrix2D(Point(inImage.cols / 2, inImage.rows / 2), -rotationAngle, 1);
+	/// Convert the filled corner into a rotation matrix to get it to the top right corner
+	int rotationAngle = distance(means, max_element(means, means + sizeof(means)/sizeof(int))) * 90;
+	M = getRotationMatrix2D(Point(inImage.cols / 2, inImage.rows / 2), outline.angle - rotationAngle, 1); // Add in original rotation as well
 	warpAffine(inImage, inImage, M, inImage.size(), INTER_LINEAR, BORDER_CONSTANT, Scalar(255, 255, 255));
 
 	return inImage;
@@ -206,7 +148,7 @@ Mat rotate_qr(Mat inImage) {
 
 String read_qr(Mat inImage) {
 /* Read QR
-- Takes in an image containing a cropped color qr code and reads the data from it
+- Takes in an image containing an oriented QR code
 
 1. Get bounding rectangle
 2. Loop through each square, missing the corners to read the pixel values and convert them to data
