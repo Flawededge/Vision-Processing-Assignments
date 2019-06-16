@@ -1,246 +1,270 @@
 // https://github.com/Flawededge/Vision-Processing-Assignments
+/**
+ * How to use it with the Glass.data:
+ * g++ MLP_example.cpp -o MLP_example `pkg-config --cflags --libs opencv`
+ *
+ * Train:
+ *
+ * ./MLP_example -save example.xml -data Glass.data
+ *
+ *
+ * Test:
+ *
+ * ./MLP_example -load example.xml -data Glass.data
+ *
+ */
 
-#include <stdio.h>
-#include <chrono>
-#include <ctime>
+#include "opencv2/core/core.hpp"
+#include "opencv2/ml/ml.hpp"
+
+#include <cstdio>
+#include <vector>
 #include <iostream>
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
 
-using namespace cv;
 using namespace std;
-using namespace chrono;
+using namespace cv;
+using namespace cv::ml;
 
-#define Mpixel(image,x,y) image.at<cv::Vec3b>(y, x)
-#define MpixelB(image,x,y) (uchar)image.at<cv::Vec3b>(y, x)[0]
-#define MpixelG(image,x,y) (uchar)image.at<cv::Vec3b>(y, x)[1]
-#define MpixelR(image,x,y) (uchar)image.at<cv::Vec3b>(y, x)[2]
-
-/*********************************************************************************************
- * compile with:
- * g++ -std=c++11 camera_with_fps.cpp -o camera_with_fps `pkg-config --cflags --libs opencv`
-*********************************************************************************************/
-
-Mat rotate_qr(Mat inImage);
-String read_qr(Mat inImage);
-int getMaxAreaContourId(vector <vector<cv::Point>> contours);
-
-Mat frame;//, image;
-int main(int argc, char** argv)
+// This function reads data and responses from the file <filename>
+static bool
+read_num_class_data(const string& filename, int var_count, Mat* _data, Mat* _responses)
 {
-	if (argc == 2) {
-		Mat image = imread(argv[1]);
+	const int M = 1024;
+	char buf[M + 2];
 
-		if (image.empty()) {
-			cout << "Image empty. May have read wrong =(" << endl;
-			return 1;
-		}
+	Mat el_ptr(1, var_count, CV_32F);
+	int i;
+	vector<int> responses;
 
-		Mat rotatedImage = rotate_qr(image);
-		String readData = read_qr(rotatedImage);
-		cout << "Read data: " << readData << endl;
-		waitKey(0);
-		return(0);
+	_data->release();
+	_responses->release();
+
+	FILE* f = fopen(filename.c_str(), "rt");
+	if (!f)
+	{
+		cout << "Could not read the database " << filename << endl;
+		return false;
 	}
-	else {
-		VideoCapture cap;
-		cap.open(0);
-		if (!cap.isOpened())
+
+	for (;;)
+	{
+		char* ptr;
+		if (!fgets(buf, M, f) || !strchr(buf, ','))
+			break;
+		responses.push_back(buf[0]);
+		//char test;
+		//test=buf[0]+65;
+		//responses.push_back(test);
+		cout << "responses " << buf[0] << " ";;//<<  endl;
+		ptr = buf + 2;
+		for (i = 0; i < var_count; i++)
 		{
-			cout << "Failed to open camera" << endl;
-			return 0;
+			int n = 0;
+			sscanf(ptr, "%f%n", &el_ptr.at<float>(i), &n);
+			ptr += n + 1;
 		}
-		cout << "Opened camera" << endl;
-		namedWindow("WebCam", 1);
-		cap.set(CAP_PROP_FRAME_WIDTH, 640);
-		//   cap.set(CV_CAP_PROP_FRAME_WIDTH, 960);
-		//   cap.set(CV_CAP_PROP_FRAME_WIDTH, 1600);
-		cap.set(CAP_PROP_FRAME_HEIGHT, 480);
-		//   cap.set(CV_CAP_PROP_FRAME_HEIGHT, 720);
-		//   cap.set(CV_CAP_PROP_FRAME_HEIGHT, 1200);
-		cap >> frame;
-		printf("frame size %d %d \n", frame.rows, frame.cols);
-		int key = 0;
-
-		double fps = 0.0;
-		while (1) {
-			system_clock::time_point start = system_clock::now();
-			//for(int a=0;a<10;a++){
-			cap >> frame;
-			if (frame.empty())
-				break;
-
-			frame = rotate_qr(frame);
-
-			char printit[100];
-			sprintf(printit, "%2.1f", fps);
-			putText(frame, printit, Point(10, 30), FONT_HERSHEY_PLAIN, 2, Scalar(255, 255, 255), 2, 8);
-			imshow("WebCam", frame);
-			key = waitKey(1);
-			if (key == 113 || key == 27) return 0;//either esc or 'q'
-
-		  //}
-			system_clock::time_point end = system_clock::now();
-			double seconds = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-			//fps = 1000000*10.0/seconds;
-			fps = 1000000 / seconds;
-			cout << "frames " << fps << " seconds " << seconds << endl;
-		}
+		cout << el_ptr << endl;
+		if (i < var_count)
+			break;
+		_data->push_back(el_ptr);
 	}
+	fclose(f);
+	Mat(responses).copyTo(*_responses);
+
+	cout << "The database " << filename << " is loaded.\n";
+
+	return true;
 }
 
-Mat rotate_qr(Mat inImage) {
-/* Rotate QR
-- Takes in a color QR code on a very bright background and rotates it to the correct orientation
+template<typename T> static Ptr<T> load_classifier(const string& filename_to_load)
+{
+	// load classifier from the specified file
+	Ptr<T> model = StatModel::load<T>(filename_to_load);
+	if (model.empty())
+		cout << "Could not read the classifier " << filename_to_load << endl;
+	else
+		cout << "The classifier " << filename_to_load << " is loaded.\n";
 
-1. Make the working image small to make the process fast
-2. Find the QR code by thresholding an inverted image
-3. Square up the working image
-4. Detect which corner is filled, and so doesn't have circles
-5. Orient the original image and return it 
-*/
-	/// Find where the QR code is
-	Mat workingImage;
-	resize(inImage, workingImage, Size(300, 300)); // Make image small to speed up processing
-	cvtColor(workingImage, workingImage, COLOR_BGR2GRAY); // Convert image to grayscale, as color isn't required
-	inRange(~workingImage, 100, 255, workingImage); // Threshold the negative of the image to remove white background
-
-	/// Morph the image to make it a bit more solid
-	Mat kernel = getStructuringElement(MORPH_RECT, Size(3, 3)); // Small kernel for a small image
-	erode(workingImage, workingImage, kernel, Point(-1, -1), 1); // Small morph to wear away the corners
-	morphologyEx(workingImage, workingImage, MORPH_CLOSE, kernel, Point(-1,-1), 3); // Closing to try and make the entire thing solid
-	
-	/// Find the largest contour and get it's details
-	vector<vector<Point>> contours; vector<Vec4i> hierarchy; // Variable setup
-	findContours(workingImage, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE); // Find contours
-	int largest = getMaxAreaContourId(contours);  // Get index of the largest contour
-
-	/// Square up the working image
-	RotatedRect outline = minAreaRect(contours[largest]); // Get the rotated rectangle
-	Mat M = getRotationMatrix2D(Point(workingImage.cols/2, workingImage.rows/2), outline.angle, 1);
-	warpAffine(workingImage, workingImage, M, workingImage.size(), INTER_LINEAR); // Square up the working image
-
-	/// Get the size and coordinates of the squared up QR code
-	findContours(workingImage, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE); // Find contours
-	largest = getMaxAreaContourId(contours);  // Get index of the largest contour
-
-	/// Check which corner is filled in to make the code upright
-		// Note: The corners are ~12% of the width, so I used 10% mean value
-	Rect qr = boundingRect(contours[largest]);
-	int boxSize = round(qr.width * 0.1);
-	Rect topLeft(qr.x, qr.y, boxSize, boxSize);
-	Rect topRight(qr.x + qr.width - boxSize, qr.y, boxSize, boxSize);
-	Rect botLeft(qr.x, qr.y + qr.height - boxSize, boxSize, boxSize);
-	Rect botRight(qr.x + qr.width - boxSize, qr.y + qr.height - boxSize, boxSize, boxSize);
-	int means[] = { mean(workingImage(topRight))[0], mean(workingImage(topLeft))[0],  // Get the mean value of each element
-		mean(workingImage(botLeft))[0], mean(workingImage(botRight))[0] };
-
-	/// Convert the filled corner into a rotation matrix to get it to the top right corner
-	int rotationAngle = distance(means, max_element(means, means + sizeof(means)/sizeof(int))) * 90;
-	M = getRotationMatrix2D(Point(inImage.cols / 2, inImage.rows / 2), outline.angle - rotationAngle, 1); // Add in original rotation as well
-	warpAffine(inImage, inImage, M, inImage.size(), INTER_LINEAR, BORDER_CONSTANT, Scalar(255, 255, 255));
-
-	return inImage;
+	return model;
 }
 
+inline TermCriteria TC(int iters, double eps)
+{
+	return TermCriteria(TermCriteria::MAX_ITER + (eps > 0 ? TermCriteria::EPS : 0), iters, eps);
+}
+
+static void test_and_save_classifier(const Ptr<StatModel>& model, const Mat& data, const Mat& responses, int ntrain_samples, int rdelta, const string& filename_to_save)
+{
+	int i, nsamples_all = data.rows;
+	double train_hr = 0, test_hr = 0;
+	int training_correct_predict = 0;
+	// compute prediction error on training data
+	for (i = 0; i < nsamples_all; i++)
+	{
+		Mat sample = data.row(i);
+		cout << "Sample: " << responses.at<int>(i) - 48 << " row " << data.row(i) << endl;
+		float r = model->predict(sample);
+		cout << "Predict:  r = " << r << endl;
+		if ((int)r == (int)(responses.at<int>(i) - 48)) //prediction is correct
+			training_correct_predict++;
+
+		//r = std::abs(r + rdelta - responses.at<int>(i)) <= FLT_EPSILON ? 1.f : 0.f;
 
 
-String read_qr(Mat inImage) {
-/* Read QR
-- Takes in an image containing an oriented QR code
-
-1. Get bounding rectangle
-2. Loop through each square, missing the corners to read the pixel values and convert them to data
-	2.1. During this use each 6 bits of data to get a character from the encodingarray
-*/
-	const float gridSize = 47; // The X*X size of the grid
-	const int cornerSize = 6; // The X*X corner size of the grid
-	
-
-	/// Get an accurate bounding rectangle
-	Mat workingImage;
-	cvtColor(inImage, workingImage, COLOR_BGR2GRAY);
-
-	vector<vector<Point>> contours;
-	vector<Vec4i> hierarchy;
-	inRange(~workingImage, 100, 255, workingImage);
-	findContours(workingImage, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
-
-	Rect qr = boundingRect(Mat(contours[getMaxAreaContourId(contours)]));  // The largest contour will be the QR code
-
-	double step = qr.width / gridSize;
-	double offset = 7 + double(qr.x);
-	int farThresh = gridSize - cornerSize;
-
-	rectangle(inImage, qr, Scalar(0, 255, 255));
-
-	/// Start of processing the squares of the image
-	Point cur;
-	
-
-	const char encodingarray[64] = { ' ','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','x','y','w','z',
-'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','X','Y','W','Z',
-'0','1','2','3','4','5','6','7','8','9','.' };
-
-	Vec3b prevValue;
-	String output;
-	bool first = true;
-
-	for (int y = 0; y < gridSize; y++) {
-		cur.y = round(y * step + offset); // Get the Y coordiante
-		for (int x = 0; x < gridSize; x++) {
-			if (((x < cornerSize || x >= farThresh) && y >= farThresh) || 
-				(x < cornerSize && y < cornerSize)) continue; // Check if in the corner
-
-			cur.x = round(x * step + offset); // Get the X coordiante
-
-			//cout << x << " " << y << " " << Mpixel(inImage, cur.x, cur.y) << endl;
-			
-			if (first) {
-				prevValue = Mpixel(inImage, cur.x, cur.y); // Get the pixel data at the current coordinate
-			}
-			else {
-				int value = 0;
-				value += prevValue[2] > 128 ? 32 : 0;
-				value += prevValue[1] > 128 ? 16 : 0;
-				value += prevValue[0] > 128 ? 8 : 0;
-				value += Mpixel(inImage, cur.x, cur.y)[2] > 128 ? 4 : 0;
-				value += Mpixel(inImage, cur.x, cur.y)[1] > 128 ? 2 : 0;
-				value += Mpixel(inImage, cur.x, cur.y)[0] > 128 ? 1 : 0;
-				output += encodingarray[value];
-
-				// Output for debug
-				//cout << value << "|" << output << "|" << endl; 
-				//imshow("WorkingImage", inImage);
-				//waitKey(0);
-			}
-			first = !first;
-
-			circle(inImage, cur, 2, Scalar(0, 0, 255)); // Draw circles to make it look like the image has chicken pox
-		}
+			//if( i < ntrain_samples )
+			//    train_hr += r;
+			//else
+			//    test_hr += r;
 	}
 
-	
-	imshow("Input", inImage); // Show the image just because it's interesting
-	return output;
+	//test_hr /= nsamples_all - ntrain_samples;
+	//train_hr = ntrain_samples > 0 ? train_hr/ntrain_samples : 1.;
+	printf("ntrain_samples %d training_correct_predict %d \n", ntrain_samples, training_correct_predict);
+	if (filename_to_save.empty())  printf("\nTest Recognition rate: training set = %.1f%% \n\n", training_correct_predict * 100.0 / ntrain_samples);
+
+
+	if (!filename_to_save.empty())
+	{
+		model->save(filename_to_save);
+	}
+	/*************   Example of how to predict a single sample ************************/
+	// Use that for the assignment3, for every frame after computing the features, r is the prediction given the features listed in this format
+		//Mat sample = data.row(i);
+	Mat sample1 = (Mat_<float>(1, 9) << 1.52101, 13.64, 4.4899998, 1.1, 71.779999, 0.059999999, 8.75, 0, 0);// 1
+	float r = model->predict(sample1);
+	cout << "Prediction: " << r << endl;
+	sample1 = (Mat_<float>(1, 9) << 1.518, 13.71, 3.9300001, 1.54, 71.809998, 0.54000002, 8.21, 0, 0.15000001);//2
+	r = model->predict(sample1);
+	cout << "Prediction: " << r << endl;
+	sample1 = (Mat_<float>(1, 9) << 1.51694, 12.86, 3.58, 1.31, 72.61, 0.61, 8.79, 0, 0);//3
+	r = model->predict(sample1);
+	cout << "Prediction: " << r << endl;
+	//    sample1 = (Mat_<float>(1,9) << );//4
+	//    r = model->predict( sample1 );
+	//    cout << "Prediction: " << r << endl;
+	sample1 = (Mat_<float>(1, 9) << 1.5151401, 14.01, 2.6800001, 3.5, 69.889999, 1.6799999, 5.8699999, 2.2, 0);//5
+	r = model->predict(sample1);
+	cout << "Prediction: " << r << endl;
+	sample1 = (Mat_<float>(1, 9) << 1.51852, 14.09, 2.1900001, 1.66, 72.669998, 0, 9.3199997, 0, 0);//6
+	r = model->predict(sample1);
+	cout << "Prediction: " << r << endl;
+	sample1 = (Mat_<float>(1, 9) << 1.51131, 13.69, 3.2, 1.81, 72.81, 1.76, 5.43, 1.19, 0);//7
+	r = model->predict(sample1);
+	cout << "Prediction: " << r << endl;
+
+	/**********************************************************************/
+
 }
 
 
-int getMaxAreaContourId(vector <vector<cv::Point>> contours) {
-/* Get max area contour ID
-This small function returns the id of the largest contour by area
 
-Note: Retrieved from a guy on Stack Overflow
-*/
-	double maxArea = 0;
-	int maxAreaContourId = -1;
-	for (int j = 0; j < contours.size(); j++) {
-		double newArea = cv::contourArea(contours.at(j));
-		if (newArea > maxArea) {
-			maxArea = newArea;
-			maxAreaContourId = j;
+static bool build_mlp_classifier(const string& data_filename, const string& filename_to_save, const string& filename_to_load) {
+	const int class_count = 10; //CLASSES
+	const float feature_split = 1.0;
+	Mat data;
+	Mat responses;
+
+	bool ok = read_num_class_data(data_filename, 9, &data, &responses);//third parameter: FEATURES
+	if (!ok)
+		return ok;
+
+	Ptr<ANN_MLP> model;
+
+	int nsamples_all = data.rows;
+	int ntrain_samples = (int)(nsamples_all * 1.0);//SPLIT
+
+	// Create or load MLP classifier
+	if (!filename_to_load.empty())
+	{
+		model = load_classifier<ANN_MLP>(filename_to_load);
+		if (model.empty())
+			return false;
+		//ntrain_samples = 0;
+	}
+	else
+	{
+		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		//
+		// MLP does not support categorical variables by explicitly.
+		// So, instead of the output class label, we will use
+		// a binary vector of <class_count> components for training and,
+		// therefore, MLP will give us a vector of "probabilities" at the
+		// prediction stage
+		//
+		// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		
+		Mat train_data = data.rowRange(0, ntrain_samples);
+		Mat train_responses = Mat::zeros(ntrain_samples, class_count, CV_32F);
+
+		// 1. unroll the responses
+		cout << "Unrolling the responses...\n";
+		for (int i = 0; i < ntrain_samples; i++)
+		{
+			int cls_label = responses.at<int>(i) - 48;// - 'A'; //change to numerical classes, still they read as chars
+			cout << "labels " << cls_label << endl;
+			train_responses.at<float>(i, cls_label) = 1.f;
+		}
+
+		// 2. train classifier
+		int layer_sz[] = { data.cols, 100, 100, class_count };
+		cout << " sizeof layer_sz " << sizeof(layer_sz) << " sizeof layer_sz[0]) " << sizeof(layer_sz[0]) << endl;
+		int nlayers = (int)(sizeof(layer_sz) / sizeof(layer_sz[0]));
+		cout << " nlayers  " << nlayers << endl;
+		Mat layer_sizes(1, nlayers, CV_32S, layer_sz);
+
+#if 1
+		int method = ANN_MLP::BACKPROP;
+		double method_param = 0.001;
+		int max_iter = 300;
+#else
+		int method = ANN_MLP::RPROP;
+		double method_param = 0.1;
+		int max_iter = 1000;
+#endif
+
+		Ptr<TrainData> tdata = TrainData::create(train_data, ROW_SAMPLE, train_responses);
+		cout << "Training the classifier (may take a few minutes)...\n";
+		model = ANN_MLP::create();
+		model->setLayerSizes(layer_sizes);
+		model->setActivationFunction(ANN_MLP::SIGMOID_SYM, 0, 0);
+		model->setTermCriteria(TC(max_iter, 0));
+		model->setTrainMethod(method, method_param);
+		model->train(tdata);
+		cout << endl;
+	}
+
+	//test_and_save_classifier(model, data, responses, ntrain_samples, 'A', filename_to_save);
+	test_and_save_classifier(model, data, responses, ntrain_samples, 0, filename_to_save);
+	return true;
+}
+
+
+int main(int argc, char* argv[])
+{
+	string filename_to_save = "";
+	string filename_to_load = "";
+	string data_filename = "letter-recognition.data";
+	int method = 0;
+
+	int i;
+	for (i = 1; i < argc; i++)
+	{
+		if (strcmp(argv[i], "-data") == 0) // flag "-data letter_recognition.xml"
+		{
+			i++;
+			data_filename = argv[i];
+		}
+		else if (strcmp(argv[i], "-save") == 0) // flag "-save filename.xml"
+		{
+			i++;
+			filename_to_save = argv[i];
+			cout << "filename to save is " << filename_to_save << endl;
+		}
+		else if (strcmp(argv[i], "-load") == 0) // flag "-load filename.xml"
+		{
+			i++;
+			filename_to_load = argv[i];
 		}
 	}
-	return maxAreaContourId;
+	build_mlp_classifier(data_filename, filename_to_save, filename_to_load);
 }
