@@ -30,21 +30,23 @@ using namespace cv::ml;
 vector<float> FourierDescriptor(vector<Point>& contour);
 int getMaxAreaContourId(vector <vector<cv::Point>> contours);
 template<typename T> static Ptr<T> load_classifier(const string& filename_to_load);
+vector<float> getDescriptor(Mat image);
+float getClass(vector<float> descriptor, Ptr<ANN_MLP> model);
 
 
 Mat frame;//, image;
 int main(int argc, char** argv)
 {
   /// Force load an image
-	argc = 2;
-	argv[1] = "C:\\Users\\Ben\\Documents\\,Git\\Vision-Processing-Assignments\\testSet\\1_A.jpg";
+	//argc = 2;
+	//argv[1] = "C:\\testSet\\5_A.jpg";
 
 	Ptr<ANN_MLP> model;
 	model = load_classifier<ANN_MLP>(setName);
-	if (model.empty())
+	if (model.empty()) {
 		cout << "Classifier empty =(";
 		return 2;
-
+	}
 
   /// Load file from parameter
 	if (argc == 2) {
@@ -56,35 +58,13 @@ int main(int argc, char** argv)
 		}
 
 		// Do the processing here!
-	  // Resize the image to a set size for ease of viewing
-		double scale = 500.0 / double(image.size[0]); // Find the % scale
-		resize(image, image, Size(), scale, scale); // Scale the image
+		vector<float> CE = getDescriptor(image);
+		float which = getClass(CE, model);
+		putText(image, to_string(which), Point(0, 200), FONT_HERSHEY_SIMPLEX, 4, Scalar(255, 0, 0), 2);
 
-	  // Threshold the image to get just the hand
-		Mat outImage;
-		Mat sleeveImage;
-		inRange(image, Scalar(0, 0, 120), Scalar(255, 255, 255), sleeveImage);
-		inRange(image, Scalar(190, 0, 100), Scalar(255, 255, 255), image); // Threshold red, as hand is brown
-		image = ~image - ~sleeveImage;
-		imshow("OUT", image);
-		imshow("Sleeve", sleeveImage);
-		medianBlur(image, image, 11); // Median to remove large blobs
-
-	  // Extract the contours
-		vector<vector<Point> > contours;
-		vector<Vec4i> hierarchy;
-		findContours(image, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
-
-	  // Get the largest contour and display it
-		Mat contourImage(image.size(), CV_8UC3); // Create a blank image for the contours to be drawn on
-		contourImage = Scalar(0, 0, 0);
-		int id = getMaxAreaContourId(contours);
-		drawContours(contourImage, contours, id, Scalar(0, 255, 0), 1);
-		imshow("Contours", contourImage);
-
-	  // Calculate and show the descriptor
-		vector<float> CE;
-		CE = FourierDescriptor(contours[id]); // Get the descripton
+		//cout << "Descriptor:";
+		//for (int i = 0; i < CE.size(); i++) cout << CE[i] << ','; // Print each part of the descriptor
+		//cout << endl;
 
 
 		// ----------------------------
@@ -124,7 +104,9 @@ int main(int argc, char** argv)
 				break;
 
 			// Process the frame here
-
+			vector<float> CE = getDescriptor(frame);
+			float which = getClass(CE, model);
+			putText(frame, to_string(which), Point(0, 200), FONT_HERSHEY_SIMPLEX, 4, Scalar(255, 0, 0), 2);
 
 			// ----------------------
 			char printit[100];
@@ -143,24 +125,6 @@ int main(int argc, char** argv)
 		}
 	}
 }
-
-//if (!filename_to_load.empty())
-//{
-//	model = load_classifier<ANN_MLP>(filename_to_load);
-//	if (model.empty())
-//		return false;
-//	//ntrain_samples = 0;
-//}
-
-
-
-
-
-
-
-
-
-
 
 vector<float> FourierDescriptor(vector<Point>& contour) {
 	vector<float> CE;
@@ -213,6 +177,49 @@ int getMaxAreaContourId(vector <vector<cv::Point>> contours) {
 		}
 	}
 	return maxAreaContourId;
+}
+
+vector<float> getDescriptor(Mat image)
+{
+	// Resize the image to a set size for ease of viewing
+	double scale = 500.0 / double(image.size[0]); // Find the % scale
+	resize(image, image, Size(), scale, scale); // Scale the image
+
+  // Threshold the image to get just the hand
+	Mat outImage;
+	Mat sleeveImage;
+	inRange(image, Scalar(0, 0, 120), Scalar(255, 255, 255), sleeveImage);
+	inRange(image, Scalar(190, 0, 100), Scalar(255, 255, 255), image); // Threshold red, as hand is brown
+	image = ~image - ~sleeveImage;
+	//imshow("OUT", image);
+	//imshow("Sleeve", sleeveImage);
+	medianBlur(image, image, 11); // Median to remove large blobs
+
+  // Extract the contours
+	vector<vector<Point> > contours;
+	vector<Vec4i> hierarchy;
+	findContours(image, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
+
+	// Get the largest contour and display it
+	Mat contourImage(image.size(), CV_8UC3); // Create a blank image for the contours to be drawn on
+	contourImage = Scalar(0, 0, 0);
+	int id = getMaxAreaContourId(contours);
+	drawContours(contourImage, contours, id, Scalar(0, 255, 0), 1);
+	//imshow("Contours", contourImage);
+
+	// Calculate and show the descriptor
+	vector<float> CE;
+	CE = FourierDescriptor(contours[id]); // Get the descriptor
+
+	return CE;
+}
+
+float getClass(vector<float> descriptor, Ptr<ANN_MLP> model)
+{
+	float r = model->predict(descriptor);
+	cout << "Predict: r=" << r << endl;
+
+	return r;
 }
 
 template<typename T> static Ptr<T> load_classifier(const string& filename_to_load)
